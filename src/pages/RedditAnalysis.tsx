@@ -106,14 +106,15 @@ export default function RedditAnalysis() {
             <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
               <h3 className="text-lg font-semibold text-red-800 mb-2">Detection Failed</h3>
-              <p className="text-red-700 mb-4">{error}</p>
+              <div className="text-red-700 mb-4 whitespace-pre-line">{error}</div>
               <div className="text-sm text-red-600 space-y-2">
                 <p className="font-medium">Possible solutions:</p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Verify the Reddit post URL is correct and accessible</li>
-                  <li>Ensure the post is public and has comments</li>
-                  <li>Check that your OpenAI API credentials are properly configured in the .env file</li>
-                  <li>Try a different Reddit post with more comments</li>
+                  <li>Try a different Reddit post with many comments (popular posts work better)</li>
+                  <li>Make sure the URL is a direct link to a Reddit post (not a mobile app link)</li>
+                  <li>Verify the post is public and not from a private/quarantined subreddit</li>
+                  <li>Check your internet connection and try again</li>
+                  <li>If the issue persists, Reddit might be blocking requests temporarily</li>
                 </ul>
               </div>
             </div>

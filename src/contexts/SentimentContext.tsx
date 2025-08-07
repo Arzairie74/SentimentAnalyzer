@@ -57,16 +57,135 @@ const scrapeRedditComments = async (url: string): Promise<string[]> => {
   console.log('URL:', url);
   
   try {
-    // Convert Reddit URL to JSON format for easier parsing
-    const jsonUrl = url.endsWith('.json') ? url : `${url}.json?limit=500&depth=10&sort=top`;
+    // Clean the URL first
+    let cleanUrl = url.trim();
+    
+    // Remove query parameters and fragments
+    cleanUrl = cleanUrl.split('?')[0].split('#')[0];
+    
+    // Remove trailing slash
+    if (cleanUrl.endsWith('/')) {
+      cleanUrl = cleanUrl.slice(0, -1);
+    }
+    
+    // Convert to JSON URL
+    const jsonUrl = `${cleanUrl}.json?limit=500&depth=10&sort=top`;
     console.log('Fetching JSON from:', jsonUrl);
     
-    const response = await fetch(jsonUrl, {
-      headers: {
-        'User-Agent': 'SentimentAnalyzer/1.0.0',
-        'Accept': 'application/json'
+    // Try multiple CORS proxy services
+    const corsProxies = [
+      'https://api.allorigins.win/raw?url=',
+      'https://corsproxy.io/?',
+      'https://cors-anywhere.herokuapp.com/',
+      '' // Direct request as fallback
+    ];
+    
+    let lastError;
+    
+    for (const proxy of corsProxies) {
+      try {
+        const proxyUrl = proxy + encodeURIComponent(jsonUrl);
+        const finalUrl = proxy === '' ? jsonUrl : proxyUrl;
+        
+        console.log(`Trying ${proxy === '' ? 'direct request' : 'proxy'}: ${finalUrl}`);
+        
+        const response = await fetch(finalUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+          mode: proxy === '' ? 'cors' : 'cors',
+          credentials: 'omit'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Successfully fetched data using', proxy === '' ? 'direct request' : 'proxy');
+        
+        // Process the data
+        return processRedditData(data);
+        
+      } catch (error) {
+        console.log(`Failed with ${proxy === '' ? 'direct request' : 'proxy'}:`, error.message);
+        lastError = error;
+        continue;
       }
-    });
+    }
+    
+    // If all methods failed, throw the last error
+    throw lastError || new Error('All request methods failed');
+    
+  } catch (error) {
+    console.error('Reddit scraping error:', error);
+    throw new Error(`Failed to scrape Reddit comments: ${error.message}. This might be due to:\n\n1. CORS restrictions - Reddit blocks browser requests\n2. The post might be private or deleted\n3. Network connectivity issues\n4. The URL format might be incorrect\n\nTry using a different Reddit post or check if the URL is accessible in your browser.`);
+  }
+};
+
+// Separate function to process Reddit data
+const processRedditData = (data: any): string[] => {
+  console.log('Processing Reddit data...');
+  
+  if (!Array.isArray(data) || data.length < 2) {
+    throw new Error('Invalid Reddit JSON structure - expected array with at least 2 elements');
+  }
+  
+  const commentsData = data[1];
+  if (!commentsData?.data?.children) {
+    throw new Error('No comments section found in Reddit data');
+  }
+  
+  const comments: string[] = [];
+  
+  // Recursive function to extract comments
+  const extractComments = (children: any[]) => {
+    for (const child of children) {
+      if (child.kind === 't1' && child.data) {
+        const comment = child.data;
+        
+        // Skip deleted, removed, or very short comments
+        if (comment.body && 
+            comment.body !== '[deleted]' && 
+            comment.body !== '[removed]' &&
+            comment.body !== '[unavailable]' &&
+            comment.body.trim().length > 10 &&
+            !comment.distinguished &&
+            !comment.stickied) {
+          comments.push(comment.body);
+        }
+        
+        // Process replies recursively
+        if (comment.replies && comment.replies.data && comment.replies.data.children) {
+          extractComments(comment.replies.data.children);
+        }
+      }
+      // Handle "more" comments - these are collapsed comment threads
+      else if (child.kind === 'more' && child.data && child.data.children) {
+        console.log('Found "more" comments section with', child.data.children.length, 'additional comment IDs');
+        // Note: These would require additional API calls to fetch, which we'll skip for now
+      }
+    }
+  };
+  
+  extractComments(commentsData.data.children);
+  
+  // Limit to 100 comments for faster processing and rate limit management
+  const limitedComments = comments.slice(0, 100);
+  
+  console.log('Extracted comments:', comments.length, '(limited to', limitedComments.length, ')');
+  console.log('Sample comments:', limitedComments.slice(0, 3).map(c => c.substring(0, 50) + '...'));
+  
+  if (limitedComments.length === 0) {
+    throw new Error('No valid comments found. The post might have no comments, all comments might be deleted, or the post might be private.');
+  }
+  
+  return limitedComments;
+};
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
