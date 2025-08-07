@@ -186,69 +186,6 @@ const processRedditData = (data: any): string[] => {
   
   return limitedComments;
 };
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    console.log('JSON data received, parsing...');
-    
-    if (!Array.isArray(data) || data.length < 2) {
-      throw new Error('Invalid Reddit JSON structure');
-    }
-    
-    const commentsData = data[1];
-    if (!commentsData?.data?.children) {
-      throw new Error('No comments section found in Reddit data');
-    }
-    
-    const comments: string[] = [];
-    
-    // Recursive function to extract comments
-    const extractComments = (children: any[]) => {
-      for (const child of children) {
-        if (child.kind === 't1' && child.data) {
-          const comment = child.data;
-          
-          // Skip deleted, removed, or very short comments
-          if (comment.body && 
-              comment.body !== '[deleted]' && 
-              comment.body !== '[removed]' &&
-              comment.body !== '[unavailable]' &&
-              comment.body.trim().length > 10 &&
-              !comment.distinguished) {
-            comments.push(comment.body);
-          }
-          
-          // Process replies recursively
-          if (comment.replies && comment.replies.data && comment.replies.data.children) {
-            extractComments(comment.replies.data.children);
-          }
-        }
-        // Handle "more" comments - these are collapsed comment threads
-        else if (child.kind === 'more' && child.data && child.data.children) {
-          console.log('Found "more" comments section with', child.data.children.length, 'additional comment IDs');
-          // Note: These would require additional API calls to fetch, which we'll skip for now
-        }
-      }
-    };
-    
-    extractComments(commentsData.data.children);
-    
-    // Limit to 100 comments for faster processing and rate limit management
-    const limitedComments = comments.slice(0, 100);
-    
-    console.log('Extracted comments:', comments.length, '(limited to', limitedComments.length, ')');
-    console.log('Sample comments:', limitedComments.slice(0, 3).map(c => c.substring(0, 50) + '...'));
-    
-    return limitedComments;
-    
-  } catch (error) {
-    console.error('Reddit scraping error:', error);
-    throw new Error(`Failed to scrape Reddit comments: ${error.message}`);
-  }
-};
 
 // Batch harassment analysis using OpenAI - analyze multiple texts in one request
 const analyzeHarassmentBatch = async (texts: string[]): Promise<Array<{ harassment: 'harassment' | 'not-harassment'; score: number }>> => {
