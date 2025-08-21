@@ -83,3 +83,8 @@ For production deployment:
 1. Set up Hugging Face API key in your hosting platform
 2. Consider rate limiting for Reddit requests
 3. Implement proper error monitoring
+
+
+
+
+// I definitely DID NOT vibe code this
