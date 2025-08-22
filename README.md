@@ -87,4 +87,4 @@ For production deployment:
 
 
 
-// I definitely DID NOT vibe code this
+// I definitely DID NOT vibe code this and of course i didnt leave my env file with my API keys, Future me please remember to add the file if im redeploying this somewhere else in the future
